@@ -3,73 +3,41 @@ import * as gh from '@actions/github'
 import { readFileSync } from 'fs'
 import * as toml from 'toml'
 
-import { input } from './input'
-import { wait } from './wait'
-import { fly } from './fly'
-import { neon } from './neon'
 import { EndpointType, Provisioner } from '@neondatabase/api-client'
-import type { CreateAppInput } from './fly/sdk'
+import { fly } from './fly'
+import * as cloudflare from './cloudflare'
+import { input } from './input'
+import { neon } from './neon'
 
 export async function run(): Promise<void> {
   const name = `${input.refName}-${gh.context.payload.pull_request?.number}`
   const apiName = `${name}-${input.suffix}`
 
   switch (input.event) {
-    case 'close-todo':
-      await destroyFlyApp(apiName)
-      await destroyNeonBranch(apiName)
-      await destroyCloudflarePage(apiName)
-      break
-
     case 'open-todo':
-      const host = await getOrCreateNeonPgBranch(name)
-      if (!host) throw new Error('failed to get host for neon branch')
+      core.debug(`${new Date().toISOString()} neon get or create branch`)
+      const dbUrl = await getOrCreateNeonPgBranch(name)
 
-      await createOrUpdateFlyApp(
-        apiName,
-        `postgresql://${input.neonUser}:${input.neonPassword}@${host}/${neonDbName}`
-      )
+      core.debug(`${new Date().toISOString()} fly deploy app`)
+      await createOrUpdateFlyApp(apiName, dbUrl)
 
+      core.debug(`${new Date().toISOString()} cloudflare deploy page`)
       await createOrUpdateCloudflarePage(name, `https://${apiName}.fly.dev`)
       break
+
+    case 'close-todo':
+      core.debug(`${new Date().toISOString()} destroying cloudflare asset`)
+      await destroyCloudflarePage(apiName)
+
+      core.debug(`${new Date().toISOString()} destroying fly app`)
+      await destroyFlyApp(apiName)
+
+      core.debug(`${new Date().toISOString()} destroying neon branch`)
+      await destroyNeonBranch(apiName)
+      break
   }
 
-  const orgRes = await fly.OrgId({ name: input.flyOrgName })
-  const orgId = orgRes.data.organization?.id
-  if (!orgId) throw new Error('did not find a fly organisation for the name')
-
-  const existingApps = await fly.Apps({ orgId: orgId })
-  const appForPullRequest = existingApps.data.apps.nodes?.find(
-    it => it?.name === apiName
-  )
-  if (!appForPullRequest) {
-    core.debug(`app '${name}' not found, creating it for ${input.flyRegion}`)
-    await fly.CreateApp({ name, orgId, region: input.flyRegion })
-  }
-
-  const configContent = readFileSync(input.flyTemplateConfig, 'utf-8')
-  const defaultConfig = toml.parse(configContent)
-  await fly.DeployImage({
-    appId: input.flyAppId,
-    img: input.containerImgUrl,
-    definition: { app: name, ...defaultConfig }
-  })
-
-  const ms = core.getInput('milliseconds')
-  // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-  core.debug(`Waiting ${ms} milliseconds ...`)
-
-  // Log the current timestamp, wait, then log the new timestamp
-  core.debug(new Date().toTimeString())
-  await wait(parseInt(ms, 10))
-  core.debug(new Date().toTimeString())
-
-  // Set outputs for other workflow steps to use
   core.setOutput('flyAppName', apiName)
-}
-
-async function destroyCloudflarePage(name: string) {
-  return fly.CreateApp({})
 }
 
 async function createOrUpdateFlyApp(apiName: string, dbUrl: string) {
@@ -108,15 +76,14 @@ async function createOrUpdateFlyApp(apiName: string, dbUrl: string) {
 }
 
 async function destroyFlyApp(name: string) {
-  return fly.DeployImage({})
+  return fly.DeleteApp({ appID: name })
 }
 
-async function getOrCreateNeonPgBranch(
-  name: string
-): Promise<string | undefined> {
+async function getOrCreateNeonPgBranch(name: string) {
   const branches = await neon.listProjectBranches(input.neonProjectId)
   const branch = branches.data.branches.find(it => it.name === name)
 
+  let host
   if (!branch) {
     const newBranch = await neon.createProjectBranch(input.neonProjectId, {
       branch: { name },
@@ -129,15 +96,20 @@ async function getOrCreateNeonPgBranch(
       ]
     })
 
-    return newBranch.data.endpoints[0]?.host
+    host = newBranch.data.endpoints[0]?.host
   } else {
     const endpoints = await neon.listProjectBranchEndpoints(
       input.neonProjectId,
       branch.id
     )
 
-    return endpoints.data.endpoints[0]?.host
+    host = endpoints.data.endpoints[0]?.host
   }
+
+  if (!host)
+    throw new Error('could not find or create an endpoint for the neon branch')
+
+  return `postgresql://${input.neonUser}:${input.neonPassword}@${host}/${input.neonDbName}${input.neonDbConnectionOptions}`
 }
 
 async function destroyNeonBranch(name: string) {
@@ -148,5 +120,9 @@ async function destroyNeonBranch(name: string) {
 }
 
 async function createOrUpdateCloudflarePage(name: string, apiUrl: string) {
-  return fly.CreateApp({})
+  return cloudflare.createOrUpdatePage(name, input.cloudflareProjectName, input.cloudflareBuildPath, apiUrl)
+}
+
+async function destroyCloudflarePage(name: string) {
+  return
 }

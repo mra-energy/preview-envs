@@ -16,10 +16,16 @@ const inputSchema = z.object({
   // cloudflare
   cloudflareToken: z.string().min(1),
   cloudflareAccountId: z.string().min(1),
+  cloudflareProjectName: z.string().min(1),
+  cloudflareBuildPath: z.string().min(1),
 
   // neon
   neonApiToken: z.string().min(1),
   neonProjectId: z.string().min(1),
+  neonUser: z.string().min(1),
+  neonPassword: z.string().min(1),
+  neonDbName: z.string().min(1),
+  neonDbConnectionOptions: z.string().startsWith('?').optional(),
 
   // action
   event: z.union([z.literal('open-todo'), z.literal('close-todo')]),
@@ -35,7 +41,10 @@ export const input = inputSchema.parse({
   flyOrgName: core.getInput('flyOrgName'),
   flyRegion: core.getInput('flyRegion'),
   flyTemplateConfig: core.getInput('flyTemplateConfig'),
-  flySecrets: Object.entries(secretsObj).map(([key, value]) => ({ key, value })),
+  flySecrets: Object.entries(secretsObj).map(([key, value]) => ({
+    key,
+    value
+  })),
   containerImgUrl: core.getInput('containerImgUrl'),
   cloudflareToken: core.getInput('cloudflareToken'),
   cloudflareAccountId: core.getInput('cloudflareAccountId'),

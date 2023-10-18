@@ -45,3 +45,12 @@ mutation SetSecrets($appId: ID!, $secrets: [SecretInput!]!) {
     }
   }
 }
+
+mutation DeleteApp($appID: ID!) {
+  deleteApp(appId: $appID) {
+    organization {
+      name
+      id
+    }
+  }
+}

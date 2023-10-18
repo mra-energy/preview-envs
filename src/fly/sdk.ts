@@ -5965,6 +5965,18 @@ export type SetSecretsMutation = {
   } | null
 }
 
+export type DeleteAppMutationVariables = Exact<{
+  appID: Scalars['ID']['input']
+}>
+
+export type DeleteAppMutation = {
+  __typename?: 'Mutations'
+  deleteApp?: {
+    __typename?: 'DeleteAppPayload'
+    organization: { __typename?: 'Organization'; name: string; id: string }
+  } | null
+}
+
 export const GetOrganizationByNameDocument = gql`
   query GetOrganizationByName($name: String!) {
     organization(name: $name) {
@@ -6017,6 +6029,16 @@ export const SetSecretsDocument = gql`
     }
   }
 `
+export const DeleteAppDocument = gql`
+  mutation DeleteApp($appID: ID!) {
+    deleteApp(appId: $appID) {
+      organization {
+        name
+        id
+      }
+    }
+  }
+`
 
 export type SdkFunctionWrapper = <T>(
   action: (requestHeaders?: Record<string, string>) => Promise<T>,
@@ -6036,6 +6058,7 @@ const ListAppsForOrganizationDocumentString = print(
 const DeployImageDocumentString = print(DeployImageDocument)
 const CreateAppDocumentString = print(CreateAppDocument)
 const SetSecretsDocumentString = print(SetSecretsDocument)
+const DeleteAppDocumentString = print(DeleteAppDocument)
 export function getSdk(
   client: GraphQLClient,
   withWrapper: SdkFunctionWrapper = defaultWrapper
@@ -6143,6 +6166,27 @@ export function getSdk(
             { ...requestHeaders, ...wrappedRequestHeaders }
           ),
         'SetSecrets',
+        'mutation'
+      )
+    },
+    DeleteApp(
+      variables: DeleteAppMutationVariables,
+      requestHeaders?: GraphQLClientRequestHeaders
+    ): Promise<{
+      data: DeleteAppMutation
+      errors?: GraphQLError[]
+      extensions?: any
+      headers: Headers
+      status: number
+    }> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.rawRequest<DeleteAppMutation>(
+            DeleteAppDocumentString,
+            variables,
+            { ...requestHeaders, ...wrappedRequestHeaders }
+          ),
+        'DeleteApp',
         'mutation'
       )
     }

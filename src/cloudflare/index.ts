@@ -1,12 +1,6 @@
 import { execSync } from 'child_process'
+import { input } from '../input'
 
-const httpClient = 0
-
-export function deletePage(name: string) {
-  return execSync(
-    `wrangler pages deploy ${path} --project-name ${projectName} --branch ${name}`
-  )
-}
 
 export function createOrUpdatePage(
   name: string,
@@ -14,24 +8,27 @@ export function createOrUpdatePage(
   path: string,
   apiUrl: string
 ) {
-    execSync(`PUBLIC_ECAIR_API_URL=${apiUrl} yarn build`)
+  execSync(`PUBLIC_ECAIR_API_URL=${apiUrl} ${input.cloudflareBuildPath}`)
   return execSync(
     `wrangler pages deploy ${path} --project-name ${projectName} --branch ${name}`
   )
 }
 
-function jsonOrThrowIfNotOk(response) {
+class HttpError extends Error {
+  response?: Response
+}
+
+function jsonOrThrowIfNotOk(response: Response) {
   if (!response.ok) {
-    let err = new Error('HTTP status code: ' + response.status)
+    let err = new HttpError('HTTP status code: ' + response.status)
     err.response = response
-    err.status = response.status
     throw err
   } else {
     return response.json()
   }
 }
 
-function listDeployments(accountId :string, project: string, page: string) {
+function listDeployments(accountId: string, project: string, page: string) {
   const params = page && new URLSearchParams({ page: String(page) })
   const url =
     `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${project}/deployments` +
@@ -43,13 +40,13 @@ function listDeployments(accountId :string, project: string, page: string) {
   }).then(jsonOrThrowIfNotOk)
 }
 
-function deleteDeployment(accountId, project, deploymentId) {
+function deleteDeployment(accountId: string, project: string, deploymentId: string) {
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${project}/deployments/${deploymentId}?force=true`
 
   console.log(`deleting ${url}`)
   return fetch(url, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` }
+    headers: { Authorization: `Bearer ${input.cloudflareApiToken}` }
   }).then(r => {
     if (![200, 404].includes(r.status)) {
       r.text().then(t => {
