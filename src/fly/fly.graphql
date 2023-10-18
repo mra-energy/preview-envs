@@ -1,0 +1,44 @@
+query GetOrganizationByName($name: String!) {
+  organization(name: $name) {
+    id
+    name
+    paidPlan
+  }
+}
+
+query ListAppsForOrganization($orgId: ID!) {
+  apps(organizationId: $orgId) {
+    nodes {
+      id
+      name
+    }
+  }
+}
+
+mutation DeployImage($appId: ID!, $img: String!, $definition: JSON!) {
+  deployImage(input: { image: $img, appId: $appId, definition: $definition }) {
+    app {
+      id
+    }
+    release {
+      status
+    }
+  }
+}
+
+mutation CreateApp($input: CreateAppInput!) {
+  createApp(input: $input) {
+    app {
+      id
+      name
+    }
+  }
+}
+
+mutation SetSecrets($appId: ID!, $secrets: [SecretInput!]!) {
+  setSecrets(input: { appId: $appId, secrets: $secrets, replaceAll: true }) {
+    app {
+      state
+    }
+  }
+}

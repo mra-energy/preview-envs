@@ -6,9 +6,9 @@ const config: CodegenConfig = {
       "https://api.fly.io/graphql": {headers: {}},
     },
   ],
-  documents: ["queries.ts"],
+  documents: ["src/fly/fly.graphql"],
   generates: {
-    "./src/fly-graphql.ts": {
+    "./src/fly/sdk.ts": {
       plugins: [
         "typescript",
         "typescript-operations",
@@ -26,8 +26,8 @@ const config: CodegenConfig = {
   hooks: {
     afterAllFileWrite: [
       // related to https://github.com/dotansimha/graphql-code-generator/issues/9046
-      "prettier -w ./src/index.ts",
-      `replace-in-file 'import { GraphQLClientRequestHeaders } from "graphql-request/build/cjs/types";' 'type GraphQLClientRequestHeaders = Record<string, string>' ./src/index.ts`,
+      `replace-in-file "import { GraphQLClientRequestHeaders } from 'graphql-request/build/cjs/types'" 'type GraphQLClientRequestHeaders = Record<string, string>' ./src/fly/sdk.ts`,
+      "prettier -w ./src/fly/sdk.ts",
     ],
   },
 };

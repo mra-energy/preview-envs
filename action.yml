@@ -1,6 +1,6 @@
-name: 'The name of your action here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Modern web app preview environments'
+description: 'Will create and delete resources for pull requests' preview environments'
+author: 'Ecair Engineering'
 
 # Define your inputs here.
 inputs:
@@ -8,6 +8,22 @@ inputs:
     description: 'Your input description here'
     required: true
     default: '1000'
+  flyAppId:
+    required: true
+  flyToken: 
+    required: true
+  containerImgUrl: 
+    required: true
+  cloudflareToken: 
+    required: true
+  cloudflareAccountId: 
+    required: true
+  neonApiToken: 
+    required: true
+  event: 
+    required: true
+  refName: 
+    required: true
 
 # Define your outputs here.
 outputs:
